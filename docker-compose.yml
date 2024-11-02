@@ -1,0 +1,22 @@
+# docker-compose.yml
+version: "3.8"
+
+services:
+  flask:
+    build:
+      context: ./flask
+    ports:
+      - "7000:7000"
+    volumes:
+      - uploads:/uploads
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "7001:7001"
+    volumes:
+      - uploads:/uploads
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+
+volumes:
+  uploads:
