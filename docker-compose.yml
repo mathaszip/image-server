@@ -2,9 +2,9 @@
 version: "3.8"
 
 services:
-  flask:
+  fastapi:
     build:
-      context: ./flask
+      context: ./fastapi
     ports:
       - "7000:7000"
     volumes:

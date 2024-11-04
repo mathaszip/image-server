@@ -5,12 +5,12 @@ FROM python:3.9-slim
 RUN apt-get update && apt-get install -y libmagic1
 
 # Install Python dependencies
-RUN pip install flask python-magic PyJWT
+RUN pip install fastapi uvicorn python-magic PyJWT python-multipart
 
 # Set the working directory
 WORKDIR /app
 
-# Copy the Flask app code
+# Copy the FastAPI app code
 COPY app.py .
 
 # Create the upload directory
@@ -19,5 +19,5 @@ RUN mkdir -p /uploads
 # Expose port
 EXPOSE 7000
 
-# Start the Flask application
-CMD ["python", "app.py"]
+# Start the FastAPI application using Uvicorn
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7000"]
