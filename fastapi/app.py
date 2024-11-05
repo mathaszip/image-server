@@ -1,6 +1,4 @@
-# main.py
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import os
 import uuid
@@ -17,6 +15,9 @@ ALLOWED_IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'ima
 
 class TokenData(BaseModel):
     project: str
+
+class ProjectRequest(BaseModel):
+    project_name: str
 
 def sanitize_file(file: UploadFile):
     mime = magic.Magic(mime=True)
@@ -37,23 +38,35 @@ def require_jwt(authorization: str = Header(...)):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 @app.post("/newproject")
-async def new_project():
-    project_name = str(uuid.uuid4())
+async def new_project(request: ProjectRequest):
+    project_name = request.project_name
     project_folder = os.path.join(UPLOAD_FOLDER, project_name)
     os.makedirs(project_folder, exist_ok=True)
 
-    token = jwt.encode({'project': project_name, 'exp': datetime.utcnow() + timedelta(days=1)}, SECRET_KEY, algorithm="HS256")
+    token = jwt.encode({'project': project_name}, SECRET_KEY, algorithm="HS256")
     return {"token": token}
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...), token_data: TokenData = Depends(require_jwt)):
+async def upload_file(
+    file: UploadFile = File(...),
+    token_data: TokenData = Depends(require_jwt),
+    fullUrl: str = Header("true")  # Default to "true" as a string
+):
+    # Convert the fullUrl parameter to a boolean
+    fullUrl = fullUrl.lower() == "true"
+
     if file and sanitize_file(file):
         file_extension = os.path.splitext(file.filename)[1]
         filename = f"{uuid.uuid4()}{file_extension}"  # Retain the original file extension
         filepath = os.path.join(UPLOAD_FOLDER, token_data.project, filename)
         with open(filepath, "wb") as buffer:
             buffer.write(file.file.read())
-        return {"url": f"{BASE_URL}/{token_data.project}/{filename}"}
+        
+        if fullUrl:
+            return {"url": f"{BASE_URL}/{token_data.project}/{filename}"}
+        else:
+            return {"filename": filename}
+    
     raise HTTPException(status_code=400, detail="Invalid file uploaded")
 
 @app.delete("/delete/{filename}")
@@ -63,7 +76,3 @@ async def delete_file(filename: str, token_data: TokenData = Depends(require_jwt
         os.remove(filepath)
         return {"message": "File deleted"}
     raise HTTPException(status_code=404, detail="File not found")
-
-if __name__ == '__main__':
-    import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=7000)
